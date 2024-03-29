@@ -9,21 +9,6 @@ function text_exists_in_file() {
     grep -qF "$1" "$2"
 }
 
-function add_to_path() {
-    local PATHS_TO_ADD=(
-        "$HOME/shell"
-    )
-
-    for path in "${PATHS_TO_ADD[@]}"; do
-        if ! text_exists_in_file "$path" "$HOME"/.bashrc; then
-            echo "export PATH=$path:$PATH" >> "$HOME"/.bashrc
-            export PATH=$path:$PATH
-        else
-            echo "$path is already in PATH"
-        fi
-    done
-}
-
 function setup_bashrc() {
     local SETUP_FILES_LOCATION="$HOME/shell"
     local SETUP_FILES=("aliases.sh" "config.sh" "path.sh")
