@@ -119,5 +119,3 @@ install_apt_packages
 #  TODO - setup dotfiles with stow
 
 source $HOME/.bashrc
-
-# test change
