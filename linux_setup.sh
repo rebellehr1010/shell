@@ -46,14 +46,11 @@ function setup_bashrc() {
 
 function setup_auto_git_backup() {
     local SHELL_FOLDER_PATH="$HOME/shell"
-    local AUTO_GIT_COMMAND="git -C $SHELL_FOLDER_PATH add .
-git -C $SHELL_FOLDER_PATH commit -m \"Auto commit on logout\"
-git -C $SHELL_FOLDER_PATH push origin main"
-    if text_exists_in_file "${AUTO_GIT_COMMAND}" "$HOME"/.bash_logout; then
-            echo "Auto git backup is already setup"
-    else
+    if [ -d "$SHELL_FOLDER_PATH" ]; then
         if ask "Setup git for shell folder?" ; then
-            echo "${AUTO_GIT_COMMAND}" >> "$HOME"/.bash_logout
+            if ! text_exists_in_file "auto_git_backup" "$HOME"/.bashrc; then
+                echo "trap $SHELL_FOLDER_PATH/auto_git_backup.sh EXIT" >> "$HOME"/.bashrc
+            fi
         fi
     fi
 }
@@ -68,6 +65,7 @@ function install_apt_packages() {
         "stow"
         "trash-cli"
         "plocate"
+        "tldr"
     )
 
     # Ask the user if they want to install each SCRIPT_FILE but don't install yet
@@ -110,6 +108,8 @@ function install_user_apps() {
     done
 }
 
+# TODO - download tldr database
+
 source $HOME/.bashrc
 
 setup_bashrc
@@ -119,3 +119,5 @@ install_apt_packages
 #  TODO - setup dotfiles with stow
 
 source $HOME/.bashrc
+
+# test change
