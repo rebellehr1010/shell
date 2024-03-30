@@ -1,0 +1,15 @@
+version = "1"
+
+[global]
+    prevent-sleep = true
+
+[default]
+    repository = "rclone:gdrive/linux_backup"
+    password-file = "~/.bashrc"
+    lock = "/tmp/resticprofile.lock"
+    priority = "high"
+    
+    [default.backup]
+        verbose = true
+        source = [ "~/shell" ]
+        schedule = "hourly"

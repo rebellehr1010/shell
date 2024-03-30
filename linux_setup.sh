@@ -51,6 +51,8 @@ function install_apt_packages() {
         "trash-cli"
         "plocate"
         "tldr"
+        "restic"
+        "rclone"
     )
 
     # Ask the user if they want to install each SCRIPT_FILE but don't install yet
@@ -102,5 +104,11 @@ setup_auto_git_backup
 install_user_apps
 install_apt_packages
 #  TODO - setup dotfiles with stow
+
+# TODO - setup restic and automatically run on trap + schedule
+# TODO - setup resticprofile
+# https://creativeprojects.github.io/resticprofile/configuration/getting_started/index.html
+# TODO - setup rclone to connect to GDrive
+# TODO - install firefox
 
 source $HOME/.bashrc
