@@ -51,6 +51,7 @@ function install_apt_packages() {
         "trash-cli"
         "plocate"
         "tldr"
+        "snap"
         "restic"
         "rclone"
     )
@@ -110,5 +111,7 @@ install_apt_packages
 # https://creativeprojects.github.io/resticprofile/configuration/getting_started/index.html
 # TODO - setup rclone to connect to GDrive
 # TODO - install firefox
+
+# syncthing-gtk
 
 source $HOME/.bashrc
