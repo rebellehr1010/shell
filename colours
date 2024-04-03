@@ -1,0 +1,39 @@
+#!/bin/bash
+
+echo "
+ls colours:
+    Blue: Directory
+    Green: Executable or recognized data file
+    Cyan (Sky Blue): Symbolic link file
+    Yellow with black background: Device
+    Magenta (Pink): Graphic image file
+    Red: Archive file
+    Red with black background: Broken link
+"
+
+eval $(echo "no:global default;fi:normal file;di:directory;ln:symbolic link;pi:named pipe;so:socket;do:door;bd:block device;cd:character device;or:orphan symlink;mi:missing file;su:set uid;sg:set gid;tw:sticky other writable;ow:other writable;st:sticky;ex:executable;"|sed -e 's/:/="/g; s/\;/"\n/g')
+
+print_colorized_ls_colors() {
+  local ls_colors=$LS_COLORS
+  local color_list=()
+
+  IFS=:
+  for i in $ls_colors; do
+    local color_code="${i#*=}"
+    local color_variable="${i%=*}"
+
+    if [ -v "$color_variable" ]; then
+      local color_name="${!color_variable}"
+    else
+      local color_name="$color_variable"
+    fi
+
+    color_list+=("\e[${color_code}m${color_name}\e[m")
+  done
+
+  local width=$(tput cols)
+  printf "%b\n" "${color_list[@]}" | column -c $width
+}
+
+print_colorized_ls_colors
+

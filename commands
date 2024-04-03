@@ -1,0 +1,107 @@
+#!/bin/bash
+
+commands_string="Command Help Format:
+  look at docopt for help
+  my_program command --option <argument>
+  my_program [<optional-argument>]
+  my_program --another-option=<with-argument>
+  my_program (--either-that-option | <or-this-argument>)
+  my_program <repeating-argument> <repeating-argument>...
+"
+
+apps_string="App Management
+  * sudo apt update; sudo apt upgrade -y; sudo apt autoremove -y
+  * sudo apt remove --purge <package>
+  * sudo snap refresh
+  * sudo snap remove --purge <package>
+"
+
+standard_string="Helpful commands/info:
+  * add .desktop files with Type=Application & Terminal=false to /usr/share/applications for WSLg
+  * 'desktop-file-(edit | validate |install) --dir=/usr/share/applications application.desktop'
+  * 'update-desktop-database'
+  * '(trash | trash-list | trash-restore)'
+  * 'stow (dotfile | app)' to create, 'stow -D (dotfile | app)' to delete
+  * 'tldr <command>' to get info about usage
+"
+
+python_string="Python Help
+  * python -m venv <venv_name>'; source <venv_name>/bin/activate
+  * Install packages from list
+    > Create 'requirements.txt' with list of packages and versions:
+        azure-core==1.29.7
+        azure-eventhub==5.11.5
+    > 'pip install -r /path/to/requirements.txt'
+"
+    
+gdb_string="GDB Help
+  * printing pointers as arrays: 'p *array@len'
+  * run gdb commands
+    > create 'gdb_commands.gdb'
+      break filename.c:line#
+      commands
+      printf \"variable = %u\n\", variable
+      continue
+      end
+    > add to postLaunchCommands -> source 'gdb_commands.gdb'
+"
+
+git_string="Git Help
+  * 'git submodule add <../../wireless-comm-module.git> wcm_core'
+  * 'git submodule update --init --recursive' 
+  * 'git submodule deinit --all'
+"
+
+string_order=("commands" "apps" "standard" "python" "gdb" "git")
+
+print_usage() {
+    echo "Usage:
+  commands [options]
+  
+Options:
+  -h --help   Show this screen
+  -a --all    Show all available commands"
+    for string_name in "${string_order[@]}"; do
+        echo " --$string_name"
+    done
+}
+
+if [ $# -eq 0 ]; then
+    print_usage
+    exit 1
+fi
+
+print_all=false
+if [ "$1" = "--all" ] || [ "$1" = "-a" ]; then
+    print_all=true
+    shift
+fi
+
+for arg in "$@"; do
+    if [ "$arg" = "--help" ] || [ "$arg" = "-h" ]; then
+        print_usage
+        exit 0
+    fi
+
+    if [[ ! "$arg" =~ ^-- ]]; then
+        echo "Error: Argument '$arg' must start with '--'"
+        print_usage
+        exit 1
+    fi
+
+    var="${arg#--}_string"
+    if declare -p "$var" >/dev/null 2>&1; then
+        echo "${!var}"
+    else
+        echo "Unknown argument: $arg"
+        print_usage
+        exit 1
+    fi
+done
+
+if [ "$print_all" = true ]; then
+    for string_name in "${string_order[@]}"; do
+        var="${string_name}_string"
+        echo "${!var}"
+    done
+fi

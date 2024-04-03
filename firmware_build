@@ -1,0 +1,270 @@
+#!/bin/bash
+
+CMAKE_PATH=/usr/local/bin/cmake
+
+CMAKE_CONFIG=""
+CUSTOMER_NAME=""
+
+# ******************************************* FUNCTIONS ****************************************** #
+function display_menu() {
+  echo "Choose an option:"
+  echo "  d) Debug"
+  echo "  r) Release"
+  echo "  q) Quit"
+}
+
+function set_config() {
+    # Check if the script is called with the -config flag
+    if [[ $1 == "-config" ]]; then
+        if [[ -z $2 ]]; then
+            echo "Error: Missing argument after -config flag."
+            exit 1
+        fi
+        
+        case $2 in
+            d) CMAKE_CONFIG="debug";;
+            r) CMAKE_CONFIG="release";;
+            *) echo "Invalid option provided after -config flag. Please use 'd' for debug or 'r' for release."; exit 1;;
+        esac
+    else
+        # Display the menu and ask the user to choose an option
+        display_menu
+        read -r -p "Enter your choice: " choice
+
+        # Use a case statement to handle different options
+        case $choice in
+            d) CMAKE_CONFIG="debug";;
+            r) CMAKE_CONFIG="release";;
+            q) echo "Exiting program."; exit;;
+            *) echo "Invalid choice. Please enter 'd', 'r', or 'q'."; exit 1;;
+        esac
+    fi
+
+    echo "Build type set to: $CMAKE_CONFIG"
+}
+
+function display_customers() {
+    echo "Choose a customer:"
+    echo "  e) earthtrack_controller"
+    echo "  a) accumax_bin"
+    echo "  q) Quit"
+}
+
+function set_customer() {
+    if [[ $1 == "-customer" ]]; then
+        if [[ -z $2 ]]; then
+            echo "Error: Missing argument after -customer flag."
+            exit 1
+        fi
+    
+        case $2 in
+            e) CUSTOMER_NAME="earthtrack_controller";;
+            a) CUSTOMER_NAME="accumax_bin";;
+            *) echo "Invalid option provided after -customer flag."; exit 1;;
+        esac
+    else
+        # Display the menu and ask the user to choose an option
+        display_customers
+        read -r -p "Enter your choice: " choice
+
+        # Use a case statement to handle different options
+        case $choice in
+            e) CUSTOMER_NAME="earthtrack_controller";;
+            a) CUSTOMER_NAME="accumax_bin";;
+            q) echo "Exiting program."; exit;;
+            *) echo "Invalid choice."; exit 1;;
+        esac
+    fi
+
+    echo "Customer set to: $CUSTOMER_NAME"
+    sleep 3
+}
+
+function cmake_clean_configure() {
+    set -x 
+    if $CMAKE_PATH --build "$5" --target clean --clean-first; then
+        if ! $CMAKE_PATH -DCMAKE_BUILD_TYPE="$1" -DPRESET_NAME="$1" -DCMAKE_INSTALL_PREFIX="$2" -DCMAKE_TOOLCHAIN_FILE:FILEPATH="$3"/gcc-arm-none-eabi.cmake -S"$4" -B"$5" -G Ninja; then
+            echo "Error configuring CMake for $5."
+            exit 1
+        fi
+    else 
+        echo "Error cleaning the build directory for $5."
+        exit 1
+    fi
+    set +x
+}
+
+function cmake_build(){
+    # Build
+    set -x
+    if ! $CMAKE_PATH --build "$1" --target "$2"; then
+        echo "Error building target $2."
+        exit 1
+    fi
+    set +x
+}
+
+function check_make_path() {
+    if [ ! -d "$1" ]; then
+        echo "Destination directory $1 does not exist. Creating..."
+        mkdir -p "$1"
+    fi
+}
+
+function upload_to_azure_storage() {
+    local SAS_TOKEN="?sv=2022-11-02&ss=bf&srt=sco&sp=rwdlacyx&se=2043-11-13T19:02:22Z&st=2023-11-13T11:02:22Z&sip=0.0.0.0-255.255.255.255&spr=https&sig=3fdtkE0p19NAlgmY2qRqC5qQGEmXnG333Xh2d7k1Vyw%3D"
+    local CONTAINER_URL="https://csfirmware.blob.core.windows.net"
+    local UPLOAD_PATH="${CONTAINER_URL}/firmware/${CUSTOMER_NAME}/${SFB_FILENAME}${SAS_TOKEN}"
+    # shellcheck disable=SC2086
+    if ! az storage blob upload -f $1 --blob-url ${UPLOAD_PATH} --overwrite=true; then
+        echo "Error uploading to Azure Storage."
+        exit 1
+    fi
+}
+
+function ask() {
+    read -p "$1 [Y/n] " -r response
+    [ -z "$response" ] ||  [ "$response" = "y" ] || [ "$response" = "Y" ]
+}
+
+function program_wcm() {
+    local STM32_PROGRAMMER_PATH="/usr/local/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI"
+    set -x
+    if ! $STM32_PROGRAMMER_PATH -c port=swd freq=8000 reset=HWrst mode=UR -rdu -ob wrp1a_strt=0x7f -ob wrp1a_end=0x00 -e all -w "$1" 0x08000000; then
+        echo "Error programming the WCM."
+        exit 1
+    fi
+    # -ob bor_en=0x01 -ob borf_lev=0x03 -ob borr_lev=0x03
+    set +x
+}
+
+
+# ********************************************* MAIN ********************************************* #
+set_config "$1" "$2"
+set_customer "$3" "$4"
+
+# *************************************** FIRMWARE VERSIONS ************************************** #
+CUSTOMER_DIR=/home/rebellehr/git/wcm/$CUSTOMER_NAME
+CUSTOMER_BUILD_DIR=$CUSTOMER_DIR/build/$CMAKE_CONFIG/build
+CUSTOMER_INSTALL_DIR=$CUSTOMER_DIR/build/$CMAKE_CONFIG/install
+CUSTOMER_CMAKE_DIR="$CUSTOMER_DIR"/wcm_core/cmake
+
+# firmware_versions=( "1.0.0" )
+# sbsfu_versions=("1")
+# firmware_versions=( "2.3.4" )
+# sbsfu_versions=("2")
+firmware_versions=( "5.4.3" "4.9.7" "3.2.1" "2.3.4" "1.0.0" )
+sbsfu_versions=("5" "4" "3" "2" "1")
+
+# CMakeLists.txt path
+CMAKE_LISTS_PATH=$CUSTOMER_DIR/CMakeLists.txt
+
+# Use sed to replace the version numbers in the CMakeLists.txt file
+for ((i=0; i<${#firmware_versions[@]}; i++)); do
+    firmware_version=${firmware_versions[i]}
+    sbsfu_version=${sbsfu_versions[i]}
+
+    # Extract major, minor, and patch versions
+    major=$(echo "$firmware_version" | cut -d '.' -f 1)
+    minor=$(echo "$firmware_version" | cut -d '.' -f 2)
+    patch=$(echo "$firmware_version" | cut -d '.' -f 3)
+
+    # Use sed to replace the version numbers in the CMakeLists.txt file
+    sed -i "s/CUSTOM_FW_MAJOR=[0-9]*/CUSTOM_FW_MAJOR=$major/" $CMAKE_LISTS_PATH
+    sed -i "s/CUSTOM_FW_MINOR=[0-9]*/CUSTOM_FW_MINOR=$minor/" $CMAKE_LISTS_PATH
+    sed -i "s/CUSTOM_FW_PATCH=[0-9]*/CUSTOM_FW_PATCH=$patch/" $CMAKE_LISTS_PATH
+    sed -i "s/SBSFU_VERSION=[0-9]*/SBSFU_VERSION=$sbsfu_version/" $CMAKE_LISTS_PATH
+
+    # ****************************** CLEAN CONFIGURE AND BUILD CUSTOMER ****************************** #
+    cmake_clean_configure $CMAKE_CONFIG $CUSTOMER_INSTALL_DIR $CUSTOMER_CMAKE_DIR $CUSTOMER_DIR $CUSTOMER_BUILD_DIR  
+
+    cmake_build $CUSTOMER_BUILD_DIR WCM_COMPLETE
+
+    SEMANTIC_VERSION=""
+    SBSFU_VERSION=""
+
+    # Check Version Numbers in the CMakeLists.txt file
+    while IFS= read -r line; do
+        if [[ $line =~ -DCUSTOM_FW_MAJOR=([0-9]+) ]]; then
+            major="${BASH_REMATCH[1]}"
+        fi
+        if [[ $line =~ -DCUSTOM_FW_MINOR=([0-9]+) ]]; then
+            minor="${BASH_REMATCH[1]}"
+        fi
+        if [[ $line =~ -DCUSTOM_FW_PATCH=([0-9]+) ]]; then
+            patch="${BASH_REMATCH[1]}"
+        fi
+        if [[ $line =~ -DSBSFU_VERSION=([0-9]+) ]]; then
+            SBSFU_VERSION="${BASH_REMATCH[1]}"
+        fi
+    done < $CMAKE_LISTS_PATH
+
+    SEMANTIC_VERSION="$major.$minor.$patch"
+    CUSTOMER_BINARY_FILENAME=${CUSTOMER_NAME}_${SEMANTIC_VERSION}
+
+
+    # ********************************* MOVE CUSTOMER FILES TO SBSFU ********************************* #
+    SBSFU_DIR=/home/rebellehr/git/stm32g0_secure_boot_secure_fw_update
+    SBSFU_BUILD_DIR=$SBSFU_DIR/build/$CMAKE_CONFIG/build
+    SBSFU_INSTALL_DIR=$SBSFU_DIR/build/$CMAKE_CONFIG/install
+    SBSFU_CMAKE_DIR=$SBSFU_DIR/cmake
+    SBSFU_USER_APP_DIR=$SBSFU_BUILD_DIR/Projects/NUCLEO-G071RB/Applications/2_Images/2_Images_UserApp
+    SBSFU_POSTBUILD_SCRIPT_PATH=$SBSFU_DIR/Projects/NUCLEO-G071RB/Applications/2_Images/2_Images_SECoreBin/STM32CubeIDE/postbuild.sh
+    
+    cd $CUSTOMER_BUILD_DIR/wcm_core || exit
+    rm -f $SBSFU_USER_APP_DIR/STM32CubeIDE/*.bin
+    rm -f $SBSFU_USER_APP_DIR/STM32CubeIDE/*.elf
+    cp WCM_COMPLETE.bin $SBSFU_USER_APP_DIR/STM32CubeIDE/"$CUSTOMER_BINARY_FILENAME".bin
+    cp WCM_COMPLETE.elf $SBSFU_USER_APP_DIR/STM32CubeIDE/"$CUSTOMER_BINARY_FILENAME".elf
+
+    
+    # ********************************* CLEAN CONFIG AND BUILD SBSFU ********************************* #
+    cmake_clean_configure release $SBSFU_INSTALL_DIR $SBSFU_CMAKE_DIR $SBSFU_DIR $SBSFU_BUILD_DIR
+
+    cmake_build $SBSFU_BUILD_DIR SECoreBin
+
+    cmake_build $SBSFU_BUILD_DIR SBSFU
+
+
+    # ********************************** BUILD USER APP WITH SCRIPT ********************************** #
+    cd $SBSFU_DIR/Projects/NUCLEO-G071RB/Applications/2_Images || exit
+    # sudo chmod 777 2_Images_SECoreBin/STM32CubeIDE/postbuild.sh
+    rm -f $SBSFU_USER_APP_DIR/Binary/*.bin
+    rm -f $SBSFU_USER_APP_DIR/Binary/*.sfb
+
+    CUSTOMER_ELF_PATH=$SBSFU_USER_APP_DIR/STM32CubeIDE/"$CUSTOMER_BINARY_FILENAME".elf
+    CUSTOMER_BIN_PATH=$SBSFU_USER_APP_DIR/STM32CubeIDE/"$CUSTOMER_BINARY_FILENAME".bin
+
+    # Run postbuild script
+    $SBSFU_POSTBUILD_SCRIPT_PATH $SBSFU_USER_APP_DIR/Binary "$CUSTOMER_ELF_PATH" "$CUSTOMER_BIN_PATH" 1 "$SBSFU_VERSION"
+
+    
+    # *************************************** MOVE BINARY FILES ************************************** #
+    FIRMWARE_OUTPUT_DIR=/home/rebellehr/git/wcm/firmware/$CUSTOMER_NAME
+
+    check_make_path $FIRMWARE_OUTPUT_DIR
+
+    BINARY_FILENAME="$CUSTOMER_BINARY_FILENAME"_V"$SBSFU_VERSION".bin
+    SFB_FILENAME="$CUSTOMER_BINARY_FILENAME"_V"$SBSFU_VERSION".sfb
+
+    mv -f "$SBSFU_USER_APP_DIR"/Binary/SBSFU_"$BINARY_FILENAME" "$FIRMWARE_OUTPUT_DIR"/"$BINARY_FILENAME"
+    mv -f "$SBSFU_USER_APP_DIR"/Binary/"$SFB_FILENAME" "$FIRMWARE_OUTPUT_DIR"/"$SFB_FILENAME"
+
+
+    # ******************************* UPLOAD SFB FILES TO AZURE STORAGE ****************************** #
+    SFB_PATH=$FIRMWARE_OUTPUT_DIR/$SFB_FILENAME
+    upload_to_azure_storage "$SFB_PATH"
+
+done
+
+
+# *************************************** PROGRAMMING LOOP *************************************** #
+while true; do
+    if ask "Program the new binary ${FIRMWARE_OUTPUT_DIR}/${BINARY_FILENAME} ?"; then
+        program_wcm "${FIRMWARE_OUTPUT_DIR}"/"${BINARY_FILENAME}"
+        echo "Return value $?"
+    else
+        echo "Exiting..."
+            break
+    fi
+done

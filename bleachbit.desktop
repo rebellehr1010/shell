@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=BleachBit
+# Icon=~/myApp/icon.xpm
+Exec=/usr/bin/bleachbit
+Comment=Cleans up Linux Install
+# Categories=Development;IDE;
+Terminal=false
+
+# Install with sudo desktop-file-install application.desktop
+

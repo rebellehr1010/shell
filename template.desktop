@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=myAppName
+Icon=~/myApp/icon.xpm
+Exec=~/myApp/launcher
+Comment=brief description
+Categories=Development;IDE;
+Terminal=false
+
+# Install with sudo desktop-file-install application.desktop
+
+X-Desktop-File-Install-Version=0.26

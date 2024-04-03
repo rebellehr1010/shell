@@ -1,0 +1,16 @@
+#!/bin/bash
+echo "Filesystem Heirarchy Standard"
+echo "/bin       - Essential command binaries that need to be available in single-user mode,"
+echo "              including to bring up the system or repair it,[3] for all users (e.g., cat, ls, cp)."
+echo "/dev       - Device files (e.g., /dev/null, /dev/disk0, /dev/sda1, /dev/tty, /dev/random)."
+echo "/etc       - Host-specific system-wide configuration files."
+echo "/etc/opt   - Configuration files for add-on packages stored in /opt."
+echo "/lib       - Libraries essential for the binaries in /bin and /sbin."
+echo "/opt       - Add-on application software packages."
+echo "/sbin      - Essential system binaries (e.g., fsck, init, route) reserved for root user. "
+echo "/usr       - Secondary hierarchy for read-only user data;"
+echo "              Contains the majority of (multi-)user utilities and applications. Should be shareable and read-only."
+echo "/usr/bin   - Non-essential command binaries (not needed in single-user mode); for all users."
+echo "/usr/local - Tertiary hierarchy for local data, specific to this host."
+echo "             Typically has further subdirectories (e.g., bin, lib, share)."
+

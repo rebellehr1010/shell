@@ -1,0 +1,40 @@
+#!/bin/bash
+
+# Function to run the command
+run_command() {
+#    /usr/local/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=swd freq=8000 reset=HWrst mode=UR -rdu -ob wrp1a_strt=0x7f -ob wrp1a_end=0x00 -e all -w "$1" 0x08000000 -ob bor_en=0x01 -ob borf_lev=0x03 -ob borr_lev=0x03
+    /usr/local/STMicroelectronics/STM32Cube/STM32CubeProgrammer/bin/STM32_Programmer_CLI -c port=swd freq=8000 reset=HWrst mode=UR -rdu -ob wrp1a_strt=0x7f -ob wrp1a_end=0x00 -e all -w "$1" 0x08000000 -ob bor_en=0x00
+}
+
+# Check if the correct number of arguments is provided
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <file_path>"
+    exit 1
+fi
+
+# Assign command line argument to variable
+file_path="$1"
+
+# Check if the file exists
+if [ ! -f "$file_path" ]; then
+    echo "Error: File '$file_path' not found."
+    exit 1
+fi
+
+# Start loop for user input
+while true; do
+    echo ""
+    read -p "Press Enter to run the command or 'x' to exit: " input
+    case $input in
+        "") # Enter key pressed
+            run_command "$file_path"
+            ;;
+        "x") # 'x' pressed, exit the loop
+            echo "Exiting..."
+            break
+            ;;
+        *)
+            echo "Invalid input. Press Enter to run the command or 'x' to exit."
+            ;;
+    esac
+done
