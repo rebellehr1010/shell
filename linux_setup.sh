@@ -111,6 +111,8 @@ install_apt_packages
 # https://creativeprojects.github.io/resticprofile/configuration/getting_started/index.html
 # TODO - setup rclone to connect to GDrive
 # TODO - install firefox
+# TODO - in /etc/wsl.conf add [boot] \n systemd=true
+# TODO - setup syncthing
 
 # syncthing-gtk
 
