@@ -98,7 +98,7 @@ function install_user_apps() {
 
 # TODO - download tldr database
 
-source $HOME/.bashrc
+source "$HOME"/.bashrc
 
 setup_bashrc
 setup_auto_git_backup
@@ -116,4 +116,4 @@ install_apt_packages
 
 # syncthing-gtk
 
-source $HOME/.bashrc
+source "$HOME"/.bashrc
